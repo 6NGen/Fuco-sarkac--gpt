@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Foucault Sarkacı Simülasyonu</title>
+<style>
+    body {
+        background: #0f172a;
+        color: white;
+        text-align: center;
+        font-family: Arial;
+    }
+    canvas {
+        background: #020617;
+        margin-top: 20px;
+        border-radius: 10px;
+    }
+    .controls {
+        margin-top: 15px;
+    }
+</style>
+</head>
+<body>
+
+<h2>Foucault Sarkacı (Gerçek Fizik Simülasyonu)</h2>
+
+<canvas id="canvas" width="600" height="600"></canvas>
+
+<div class="controls">
+    Enlem: <input type="range" id="lat" min="0" max="90" value="37">
+    <span id="latVal">37°</span>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let phi = 37 * Math.PI / 180;
+const g = 9.81;
+const L = 20;
+const Omega = 2 * Math.PI / 86400;
+
+let state = {
+    x: 1,
+    y: 0,
+    vx: 0,
+    vy: 0
+};
+
+let trail = [];
+
+function derivatives(s) {
+    let ax = 2 * Omega * Math.sin(phi) * s.vy - (g / L) * s.x;
+    let ay = -2 * Omega * Math.sin(phi) * s.vx - (g / L) * s.y;
+
+    return { ax, ay };
+}
+
+// RK4 integrator (önemli!)
+function step(dt) {
+    let k1 = derivatives(state);
+
+    let s2 = {
+        x: state.x + state.vx * dt/2,
+        y: state.y + state.vy * dt/2,
+        vx: state.vx + k1.ax * dt/2,
+        vy: state.vy + k1.ay * dt/2
+    };
+
+    let k2 = derivatives(s2);
+
+    let s3 = {
+        x: state.x + s2.vx * dt/2,
+        y: state.y + s2.vy * dt/2,
+        vx: state.vx + k2.ax * dt/2,
+        vy: state.vy + k2.ay * dt/2
+    };
+
+    let k3 = derivatives(s3);
+
+    let s4 = {
+        x: state.x + s3.vx * dt,
+        y: state.y + s3.vy * dt,
+        vx: state.vx + k3.ax * dt,
+        vy: state.vy + k3.ay * dt
+    };
+
+    let k4 = derivatives(s4);
+
+    state.x += (state.vx + 2*s2.vx + 2*s3.vx + s4.vx) * dt / 6;
+    state.y += (state.vy + 2*s2.vy + 2*s3.vy + s4.vy) * dt / 6;
+    state.vx += (k1.ax + 2*k2.ax + 2*k3.ax + k4.ax) * dt / 6;
+    state.vy += (k1.ay + 2*k2.ay + 2*k3.ay + k4.ay) * dt / 6;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let scale = 200;
+    let cx = canvas.width / 2;
+    let cy = canvas.height / 2;
+
+    // Trail
+    ctx.beginPath();
+    for (let i = 0; i < trail.length; i++) {
+        let tx = cx + trail[i].x * scale;
+        let ty = cy + trail[i].y * scale;
+        if (i === 0) ctx.moveTo(tx, ty);
+        else ctx.lineTo(tx, ty);
+    }
+    ctx.strokeStyle = "#38bdf8";
+    ctx.stroke();
+
+    // Bob
+    let px = cx + state.x * scale;
+    let py = cy + state.y * scale;
+
+    ctx.beginPath();
+    ctx.arc(px, py, 8, 0, Math.PI * 2);
+    ctx.fillStyle = "#facc15";
+    ctx.fill();
+}
+
+function animate() {
+    for (let i = 0; i < 5; i++) step(0.02);
+
+    trail.push({x: state.x, y: state.y});
+    if (trail.length > 1000) trail.shift();
+
+    draw();
+    requestAnimationFrame(animate);
+}
+
+animate();
+
+// Slider kontrol
+const slider = document.getElementById("lat");
+const label = document.getElementById("latVal");
+
+slider.oninput = function() {
+    label.innerText = this.value + "°";
+    phi = this.value * Math.PI / 180;
+};
+</script>
+
+</body>
+</html>
